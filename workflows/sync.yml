@@ -18,6 +18,6 @@ jobs:
     - name: GitHub Organization Sync-er
       uses: mattwarkentin/github-organization-sync-er@v1.0.2
       with:
-        source_org: 'your-github-enterprise-org'  # GitHub Enterprise organization
-        target_org: 'your-github-com-org'        # GitHub.com organization
+        source_org: 'https://gits-15.sys.kth.se/xx'  # GitHub Enterprise organization
+        target_org: 'https://github.com/xaoexxx'        # GitHub.com organization
         github_token: ${{ secrets.GH_TOKEN }}   # The token you created above
