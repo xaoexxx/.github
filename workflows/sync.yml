@@ -1,0 +1,23 @@
+name: Sync Organization Repositories
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # This will run the action once a day; adjust as needed.
+  push:
+    branches:
+      - main # You can adjust this to your preferred branch.
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: GitHub Organization Sync-er
+      uses: mattwarkentin/github-organization-sync-er@v1.0.2
+      with:
+        source_org: 'your-github-enterprise-org'  # GitHub Enterprise organization
+        target_org: 'your-github-com-org'        # GitHub.com organization
+        github_token: ${{ secrets.GH_TOKEN }}   # The token you created above
