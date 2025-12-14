@@ -276,11 +276,12 @@ Storage:
       
       if (part.startsWith('+e')) {
         const name = parts[i + 1] || 'unnamed';
-        if (!name.startsWith('?') && !name.startsWith('@') && !name.startsWith('.')) {
+        if (!name.startsWith('?') && !name.startsWith('@') && !name.startsWith('.') && !name.startsWith('(')) {
           this.createEvent(name);
           i++;
         } else {
-          this.createEvent('event');
+          // Use timestamp-based ID for unnamed events
+          this.createEvent(`event-${Date.now().toString(36)}`);
         }
       } else if (part.startsWith('?')) {
         const pattern = part.slice(1).replace(/\(s\)$/, '');
@@ -294,6 +295,10 @@ Storage:
         this.pipeRepos();
       } else if (part === 'start') {
         const name = parts[i + 1];
+        if (!name || name.startsWith('+') || name.startsWith('?') || name.startsWith('@') || name.startsWith('.') || name.startsWith('(')) {
+          console.error('✗ Error: start command requires a conversation name');
+          return;
+        }
         const nodeArg = parts[i + 2];
         const node = nodeArg?.startsWith('@') ? nodeArg.slice(1) : currentNode;
         this.startConversation(name, node);
@@ -301,6 +306,10 @@ Storage:
       } else if (part === 'send') {
         const convId = parts[i + 1];
         const message = parts.slice(i + 2).join(' ');
+        if (!convId || !message) {
+          console.error('✗ Error: send command requires conversation ID and message');
+          return;
+        }
         this.sendMessage(convId, message);
         break;
       } else if (part === 'nodes') {
