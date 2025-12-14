@@ -1,0 +1,354 @@
+#!/usr/bin/env node
+
+/**
+ * EV (Eventual) - A CLI chat/messaging application where conversations make things happen
+ * 
+ * Usage: ev [options] [command]
+ * 
+ * Commands:
+ *   +e <name>              Create/enable a new conversation/event
+ *   ?<name>(s)             Query/list conversations or instances
+ *   @<node>                Target a specific node/server
+ *   (runall)               Execute all pending conversations
+ *   .repos                 Pipe in repository data
+ * 
+ * Example: ev +e ?xx(s) @node (runall) .repos
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+class EventualCLI {
+  constructor() {
+    this.dataDir = path.join(process.env.HOME || process.env.USERPROFILE, '.ev');
+    this.conversationsFile = path.join(this.dataDir, 'conversations.json');
+    this.nodesFile = path.join(this.dataDir, 'nodes.json');
+    this.eventsFile = path.join(this.dataDir, 'events.json');
+    this.initializeStorage();
+  }
+
+  initializeStorage() {
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(this.conversationsFile)) {
+      fs.writeFileSync(this.conversationsFile, JSON.stringify([], null, 2));
+    }
+    if (!fs.existsSync(this.nodesFile)) {
+      fs.writeFileSync(this.nodesFile, JSON.stringify([], null, 2));
+    }
+    if (!fs.existsSync(this.eventsFile)) {
+      fs.writeFileSync(this.eventsFile, JSON.stringify([], null, 2));
+    }
+  }
+
+  readData(file) {
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  writeData(file, data) {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+  }
+
+  // +e <name> - Create/enable a new event/conversation
+  createEvent(name) {
+    const events = this.readData(this.eventsFile);
+    const event = {
+      id: Date.now().toString(36),
+      name: name,
+      status: 'enabled',
+      createdAt: new Date().toISOString(),
+      messages: []
+    };
+    events.push(event);
+    this.writeData(this.eventsFile, events);
+    console.log(`✓ Event created: ${name} [${event.id}]`);
+    return event;
+  }
+
+  // ?<name>(s) - Query conversations/instances
+  query(pattern) {
+    const events = this.readData(this.eventsFile);
+    const conversations = this.readData(this.conversationsFile);
+    
+    console.log('\n📋 Events:');
+    events.forEach(e => {
+      if (!pattern || e.name.includes(pattern)) {
+        console.log(`  [${e.id}] ${e.name} - ${e.status} (${e.messages?.length || 0} messages)`);
+      }
+    });
+
+    console.log('\n💬 Conversations:');
+    conversations.forEach(c => {
+      if (!pattern || c.name.includes(pattern)) {
+        console.log(`  [${c.id}] ${c.name} @${c.node || 'local'} - ${c.status}`);
+      }
+    });
+  }
+
+  // @<node> - Target a specific node
+  setNode(nodeName) {
+    const nodes = this.readData(this.nodesFile);
+    let node = nodes.find(n => n.name === nodeName);
+    
+    if (!node) {
+      node = {
+        name: nodeName,
+        status: 'active',
+        connectedAt: new Date().toISOString(),
+        conversations: []
+      };
+      nodes.push(node);
+      this.writeData(this.nodesFile, nodes);
+      console.log(`✓ Connected to node: ${nodeName}`);
+    }
+    
+    return node;
+  }
+
+  // (runall) - Execute all pending conversations
+  runAll(node = 'local') {
+    const conversations = this.readData(this.conversationsFile);
+    const events = this.readData(this.eventsFile);
+    
+    console.log(`\n🚀 Running all conversations on node: ${node}\n`);
+    
+    let executed = 0;
+    conversations.forEach(conv => {
+      if (conv.status === 'pending' && (!conv.node || conv.node === node)) {
+        console.log(`  ⚡ Executing: ${conv.name}`);
+        conv.status = 'executed';
+        conv.executedAt = new Date().toISOString();
+        executed++;
+      }
+    });
+
+    events.forEach(event => {
+      if (event.status === 'enabled') {
+        console.log(`  ⚡ Processing event: ${event.name}`);
+        executed++;
+      }
+    });
+
+    this.writeData(this.conversationsFile, conversations);
+    console.log(`\n✓ Executed ${executed} conversation(s)`);
+  }
+
+  // .repos - Pipe in repository data
+  pipeRepos() {
+    console.log('\n📦 Scanning repositories...\n');
+    
+    try {
+      const repos = [];
+      
+      // Recursively search for .git directories using Node.js fs APIs
+      const searchDir = (dir, depth = 0, maxDepth = 3) => {
+        if (depth > maxDepth) return;
+        
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          
+          for (const entry of entries) {
+            if (entry.name.startsWith('.') && entry.name !== '.git') continue;
+            
+            const fullPath = path.join(dir, entry.name);
+            
+            if (entry.isDirectory()) {
+              if (entry.name === '.git') {
+                // Found a git repository
+                const repoPath = dir;
+                try {
+                  const remote = execSync('git remote get-url origin 2>/dev/null || echo "local"', {
+                    cwd: repoPath,
+                    encoding: 'utf8',
+                    timeout: 2000,
+                    stdio: ['pipe', 'pipe', 'ignore']
+                  }).trim();
+                  
+                  repos.push({
+                    path: repoPath,
+                    remote: remote,
+                    name: path.basename(repoPath)
+                  });
+                } catch {
+                  // Ignore git command errors
+                }
+              } else if (depth < maxDepth) {
+                searchDir(fullPath, depth + 1, maxDepth);
+              }
+            }
+          }
+        } catch {
+          // Ignore permission errors and continue
+        }
+      };
+      
+      searchDir('.');
+      
+      repos.forEach((repo, i) => {
+        console.log(`  [${i + 1}] ${repo.name}`);
+        console.log(`      📍 ${repo.path}`);
+        console.log(`      🔗 ${repo.remote}`);
+      });
+
+      console.log(`\n✓ Found ${repos.length} repository(ies)`);
+      return repos;
+    } catch (e) {
+      console.log('  ℹ No repositories found in current scope');
+      return [];
+    }
+  }
+
+  // Start a new conversation
+  startConversation(name, node = 'local') {
+    const conversations = this.readData(this.conversationsFile);
+    const conversation = {
+      id: Date.now().toString(36),
+      name: name,
+      node: node,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      messages: []
+    };
+    conversations.push(conversation);
+    this.writeData(this.conversationsFile, conversations);
+    console.log(`✓ Conversation started: ${name} @${node}`);
+    return conversation;
+  }
+
+  // Send a message in a conversation
+  sendMessage(conversationId, message) {
+    const conversations = this.readData(this.conversationsFile);
+    const conv = conversations.find(c => c.id === conversationId);
+    
+    if (conv) {
+      conv.messages.push({
+        text: message,
+        timestamp: new Date().toISOString()
+      });
+      this.writeData(this.conversationsFile, conversations);
+      console.log(`✓ Message sent to ${conv.name}`);
+    } else {
+      console.error(`✗ Conversation not found: ${conversationId}`);
+    }
+  }
+
+  // List all nodes
+  listNodes() {
+    const nodes = this.readData(this.nodesFile);
+    console.log('\n🌐 Nodes:');
+    nodes.forEach(n => {
+      console.log(`  ${n.name} - ${n.status} (${n.conversations?.length || 0} conversations)`);
+    });
+  }
+
+  // Show help
+  showHelp() {
+    console.log(`
+EV (Eventual) - Terminal Chat Application
+
+Usage: ev [command] [options]
+
+Commands:
+  +e <name>              Create/enable a new event or conversation
+  ?<name>(s)             Query and list conversations/events (optional pattern)
+  @<node> <action>       Target a specific node for actions
+  (runall)               Execute all pending conversations
+  .repos                 Scan and display repositories in scope
+  
+  start <name> [@node]   Start a new conversation (optional node)
+  send <id> <message>    Send a message to a conversation
+  nodes                  List all available nodes
+  help                   Show this help message
+
+Examples:
+  ev +e myevent                    Create a new event
+  ev ?xx                           Query conversations matching 'xx'
+  ev @mynode (runall)              Run all on specific node
+  ev .repos                        List repositories
+  ev +e ?xx(s) @node (runall) .repos   Combined operation
+
+Storage:
+  Data is stored in ~/.ev/
+  - conversations.json : Active conversations
+  - events.json       : Events and their status
+  - nodes.json        : Connected nodes
+`);
+  }
+
+  // Parse and execute complex commands
+  executeCommand(args) {
+    const command = args.join(' ');
+    
+    // Parse complex syntax like: ev +e ?xx(s) @node (runall) .repos
+    let currentNode = 'local';
+    
+    // Execute each part in sequence
+    const parts = command.split(/\s+/);
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      if (part.startsWith('+e')) {
+        const name = parts[i + 1] || 'unnamed';
+        if (!name.startsWith('?') && !name.startsWith('@') && !name.startsWith('.') && !name.startsWith('(')) {
+          this.createEvent(name);
+          i++;
+        } else {
+          // Use timestamp-based ID for unnamed events
+          this.createEvent(`event-${Date.now().toString(36)}`);
+        }
+      } else if (part.startsWith('?')) {
+        const pattern = part.slice(1).replace(/\(s\)$/, '');
+        this.query(pattern);
+      } else if (part.startsWith('@')) {
+        currentNode = part.slice(1);
+        this.setNode(currentNode);
+      } else if (part === '(runall)') {
+        this.runAll(currentNode);
+      } else if (part === '.repos') {
+        this.pipeRepos();
+      } else if (part === 'start') {
+        const name = parts[i + 1];
+        if (!name || name.startsWith('+') || name.startsWith('?') || name.startsWith('@') || name.startsWith('.') || name.startsWith('(')) {
+          console.error('✗ Error: start command requires a conversation name');
+          return;
+        }
+        const nodeArg = parts[i + 2];
+        const node = nodeArg?.startsWith('@') ? nodeArg.slice(1) : currentNode;
+        this.startConversation(name, node);
+        i += nodeArg?.startsWith('@') ? 2 : 1;
+      } else if (part === 'send') {
+        const convId = parts[i + 1];
+        const message = parts.slice(i + 2).join(' ');
+        if (!convId || !message) {
+          console.error('✗ Error: send command requires conversation ID and message');
+          return;
+        }
+        this.sendMessage(convId, message);
+        break;
+      } else if (part === 'nodes') {
+        this.listNodes();
+      } else if (part === 'help' || part === '--help' || part === '-h') {
+        this.showHelp();
+      }
+    }
+  }
+}
+
+// Main execution
+const args = process.argv.slice(2);
+
+if (args.length === 0) {
+  const cli = new EventualCLI();
+  cli.showHelp();
+  process.exit(0);
+}
+
+const cli = new EventualCLI();
+cli.executeCommand(args);
