@@ -1,0 +1,28 @@
+{
+  "name": "@xaoexxx/exx-server",
+  "version": "1.0.0",
+  "description": "EXX House & Addon System - Node.js Backend Server",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "exx",
+    "house",
+    "addon",
+    "cli",
+    "stardew-valley"
+  ],
+  "author": "xaoexxx",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.14.2"
+  }
+}

@@ -1,0 +1,58 @@
+# EXX System - Multi-language Docker Image
+FROM debian:bookworm-slim
+
+LABEL maintainer="xaoexxx"
+LABEL description="EXX House & Addon System - Multi-language Support (Perl, PHP, Ruby)"
+LABEL license="MIT"
+LABEL org.opencontainers.image.source="https://github.com/xaevex/.github"
+
+# Install runtimes
+RUN apt-get update && apt-get install -y \
+    perl \
+    php-cli \
+    php-json \
+    ruby \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Perl dependencies
+RUN cpan -T JSON::PP File::HomeDir
+
+WORKDIR /app
+
+# Copy all implementations
+COPY exx-perl/exx.pl /app/exx-perl
+COPY exx-php/exx.php /app/exx-php
+COPY exx-ruby/exx.rb /app/exx-ruby
+
+RUN chmod +x /app/exx-perl /app/exx-php /app/exx-ruby
+
+# Create universal wrapper
+RUN cat > /app/exx << 'EOF'
+#!/bin/bash
+# Universal EXX wrapper - detects and uses available runtime
+
+if command -v ruby &> /dev/null; then
+    exec ruby /app/exx-ruby "$@"
+elif command -v php &> /dev/null; then
+    exec php /app/exx-php "$@"
+elif command -v perl &> /dev/null; then
+    exec perl /app/exx-perl "$@"
+else
+    echo "Error: No compatible runtime found (Ruby, PHP, or Perl)"
+    exit 1
+fi
+EOF
+
+RUN chmod +x /app/exx
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash exx && \
+    mkdir -p /home/exx/.ev && \
+    chown -R exx:exx /home/exx
+
+USER exx
+
+ENV PATH="/app:${PATH}"
+
+ENTRYPOINT ["/app/exx"]
+CMD ["help"]

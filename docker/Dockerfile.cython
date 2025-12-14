@@ -1,0 +1,96 @@
+# EXX System - Python/Cython Docker Image
+FROM python:3.11-slim AS builder
+
+LABEL maintainer="xaoexxx"
+LABEL description="EXX House & Addon System - Cython Implementation"
+LABEL license="MIT"
+LABEL org.opencontainers.image.source="https://github.com/xaevex/.github"
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Cython
+RUN pip install --no-cache-dir cython
+
+# Copy Cython source
+COPY exx-cython/ .
+
+# Create setup.py for Cython compilation
+RUN cat > setup.py << 'EOF'
+from setuptools import setup
+from Cython.Build import cythonize
+import sys
+
+setup(
+    name='exx-system',
+    ext_modules=cythonize("exx_system.pyx", compiler_directives={'language_level': "3"}),
+    zip_safe=False,
+)
+EOF
+
+# Build Cython extension
+RUN python setup.py build_ext --inplace
+
+# Final runtime image
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash exx
+
+# Copy compiled extension
+COPY --from=builder /app/*.so /app/
+COPY --from=builder /app/exx_system.pyx /app/
+
+# Create CLI wrapper
+RUN cat > /app/exx << 'EOF'
+#!/usr/bin/env python3
+import sys
+from exx_system import ExxFarmSystem
+
+if __name__ == '__main__':
+    system = ExxFarmSystem()
+    command = sys.argv[1] if len(sys.argv) > 1 else 'help'
+    
+    try:
+        if command == 'create':
+            owner = sys.argv[2] if len(sys.argv) > 2 else None
+            name = ' '.join(sys.argv[3:]) if len(sys.argv) > 3 else None
+            system.create_house(owner, name)
+        elif command == 'build':
+            house_id = sys.argv[2] if len(sys.argv) > 2 else None
+            addon_type = sys.argv[3] if len(sys.argv) > 3 else None
+            system.build_addon(house_id, addon_type)
+        elif command == 'addons':
+            system.list_addon_types()
+        elif command == 'show':
+            house_id = sys.argv[2] if len(sys.argv) > 2 else None
+            system.show_house(house_id)
+        elif command == 'neighborhood':
+            system.list_neighborhood()
+        else:
+            system.show_help()
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        sys.exit(1)
+EOF
+
+RUN chmod +x /app/exx
+
+# Create data directory
+RUN mkdir -p /home/exx/.ev && \
+    chown -R exx:exx /home/exx
+
+USER exx
+
+ENV PATH="/app:${PATH}"
+
+ENTRYPOINT ["/app/exx"]
+CMD ["help"]

@@ -1,0 +1,9 @@
+#!/usr/bin/env node
+
+/**
+ * EXX - House & Addon System Wrapper
+ * 
+ * Your EV CLI IS your house. This tool manages houses and their addons.
+ */
+
+require('./exx-farm-system.js');
