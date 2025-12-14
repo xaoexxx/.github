@@ -144,32 +144,52 @@ class EventualCLI {
     console.log('\n📦 Scanning repositories...\n');
     
     try {
-      // Try to get git repos from current directory (limited depth)
-      const gitDirs = execSync('find . -maxdepth 3 -name ".git" -type d 2>/dev/null | head -20', {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'ignore'],
-        timeout: 5000
-      }).trim().split('\n').filter(Boolean);
-
-      const repos = gitDirs.map(dir => {
-        const repoPath = path.dirname(dir);
+      const repos = [];
+      
+      // Recursively search for .git directories using Node.js fs APIs
+      const searchDir = (dir, depth = 0, maxDepth = 3) => {
+        if (depth > maxDepth) return;
+        
         try {
-          const remote = execSync('git remote get-url origin 2>/dev/null || echo "local"', {
-            cwd: repoPath,
-            encoding: 'utf8',
-            timeout: 2000
-          }).trim();
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
           
-          return {
-            path: repoPath,
-            remote: remote,
-            name: path.basename(repoPath)
-          };
+          for (const entry of entries) {
+            if (entry.name.startsWith('.') && entry.name !== '.git') continue;
+            
+            const fullPath = path.join(dir, entry.name);
+            
+            if (entry.isDirectory()) {
+              if (entry.name === '.git') {
+                // Found a git repository
+                const repoPath = dir;
+                try {
+                  const remote = execSync('git remote get-url origin 2>/dev/null || echo "local"', {
+                    cwd: repoPath,
+                    encoding: 'utf8',
+                    timeout: 2000,
+                    stdio: ['pipe', 'pipe', 'ignore']
+                  }).trim();
+                  
+                  repos.push({
+                    path: repoPath,
+                    remote: remote,
+                    name: path.basename(repoPath)
+                  });
+                } catch {
+                  // Ignore git command errors
+                }
+              } else if (depth < maxDepth) {
+                searchDir(fullPath, depth + 1, maxDepth);
+              }
+            }
+          }
         } catch {
-          return null;
+          // Ignore permission errors and continue
         }
-      }).filter(Boolean);
-
+      };
+      
+      searchDir('.');
+      
       repos.forEach((repo, i) => {
         console.log(`  [${i + 1}] ${repo.name}`);
         console.log(`      📍 ${repo.path}`);
