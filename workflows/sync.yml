@@ -6,6 +6,10 @@ on:
   push:
     branches:
       - main # You can adjust this to your preferred branch.
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  SOURCE_ORG: 'https://gits-15.sys.kth.se/xx'  # GitHub Enterprise organization
 
 jobs:
   sync:
@@ -13,11 +17,11 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: GitHub Organization Sync-er
       uses: mattwarkentin/github-organization-sync-er@v1.0.2
       with:
-        source_org: 'https://gits-15.sys.kth.se/xx'  # GitHub Enterprise organization
+        source_org: ${{ env.SOURCE_ORG }}
         target_org: 'https://github.com/xaoexxx'        # GitHub.com organization
         github_token: ${{ secrets.GH_TOKEN }}   # The token you created above

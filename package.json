@@ -1,0 +1,25 @@
+{
+  "name": "@xaoexxx/ev-cli",
+  "version": "1.0.0",
+  "description": "EV (Eventual) - A CLI chat/messaging application where conversations make things happen",
+  "main": "ev",
+  "bin": {
+    "ev": "./ev"
+  },
+  "scripts": {
+    "test": "node ev help"
+  },
+  "keywords": [
+    "cli",
+    "chat",
+    "messaging",
+    "conversations",
+    "terminal",
+    "eventual"
+  ],
+  "author": "xaoexxx",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

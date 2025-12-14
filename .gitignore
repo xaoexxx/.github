@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# EV data directory (user-specific data)
+.ev/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
