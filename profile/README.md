@@ -1,6 +1,7 @@
 # xx - The Eventual Movement
 
 ## 🚀 About xx
+ev xx +e
 
 **xx** is the main eventual movement family of libraries, packages, and data structures designed to revolutionize how we build and orchestrate modern applications. 
 
