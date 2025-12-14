@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Node.js/React Web UI
+  exx-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.nodejs
+    container_name: exx-web
+    ports:
+      - "3001:3001"
+    volumes:
+      - exx-data:/home/exx/.ev
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
+    networks:
+      - exx-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Cython CLI
+  exx-cython:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cython
+    container_name: exx-cython
+    volumes:
+      - exx-data:/home/exx/.ev
+    stdin_open: true
+    tty: true
+    networks:
+      - exx-network
+    entrypoint: ["/bin/bash"]
+
+  # Multi-language CLI (Perl/PHP/Ruby)
+  exx-multi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+    container_name: exx-multi
+    volumes:
+      - exx-data:/home/exx/.ev
+    stdin_open: true
+    tty: true
+    networks:
+      - exx-network
+    entrypoint: ["/bin/bash"]
+
+networks:
+  exx-network:
+    driver: bridge
+
+volumes:
+  exx-data:
+    driver: local

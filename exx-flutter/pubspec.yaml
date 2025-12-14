@@ -1,0 +1,50 @@
+name: exx_flutter
+description: EXX House & Addon System - Flutter cross-platform app for iOS, Android, Web, macOS, Windows, and Linux
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Data Persistence
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1
+  
+  # Networking (for future backend integration)
+  http: ^1.1.2
+  
+  # JSON
+  json_annotation: ^4.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/
+
+# Platform configurations
+flutter_platforms:
+  - android
+  - ios
+  - web
+  - macos
+  - windows
+  - linux
