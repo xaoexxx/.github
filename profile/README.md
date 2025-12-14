@@ -2,7 +2,9 @@
 
 ## 🚀 About xx
 
-**xx** is the main eventual movement family of libraries, packages, and data structures designed to revolutionize how we build and orchestrate modern applications. Built as a terminal-like, self-contained system running with maximum security and AI-powered capabilities for pre-organizing, predicting, and executing tasks.
+**xx** is the main eventual movement family of libraries, packages, and data structures designed to revolutionize how we build and orchestrate modern applications. 
+
+It is built as a terminal-like, self-contained system running with maximum security. The system features AI-powered capabilities for pre-organizing, predicting, and executing tasks.
 
 ### Core Features
 
